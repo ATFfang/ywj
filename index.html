@@ -179,7 +179,7 @@
 </head>
 <body>
 <div id="app">
-  <header>做题App</header>
+  <header>教育学刷题</header>
   <div id="contentWrapper">
     <div id="content"></div>
   </div>
@@ -188,6 +188,9 @@
     <div id="arrow-left" class="arrow" title="上一章" style="display:none;">‹</div>
     <div id="arrow-right" class="arrow" title="下一章" style="display:none;">›</div>
   </div>
+  <button id="goToIndex2Btn" style="position: fixed; bottom: 70px; right: 16px; z-index: 1000; padding: 10px 16px; background-color: #007aff; color: white; border:none; border-radius: 22px; font-weight: 600; cursor: pointer;">
+  去背书
+</button>
 </div>
 
 <script>
@@ -357,66 +360,73 @@
   // 提交按钮判分
   const submitBtn = document.getElementById("submit-btn");
   submitBtn.onclick = () => {
-    const sectionTitle = sections[currentPage];
-    const isMulti = isMultiChoice(sectionTitle);
-    const correctAnswers = answerData[sectionTitle] || {};
+  const sectionTitle = sections[currentPage];
+  const isMulti = isMultiChoice(sectionTitle);
+  const correctAnswers = answerData[sectionTitle] || {};
 
-    const sectionEl = document.querySelector(`section[data-section-index="${currentPage}"]`);
-    if (!sectionEl) return;
+  const sectionEl = document.querySelector(`section[data-section-index="${currentPage}"]`);
+  if (!sectionEl) return;
 
-    let total = 0;
-    let correctCount = 0;
+  let total = 0;
+  let correctCount = 0;
 
-    // 遍历每题
-    sectionEl.querySelectorAll(".question").forEach(qDiv => {
-      total++;
-      const qNo = qDiv.dataset.qno;
-      const correctAns = correctAnswers[qNo] ? correctAnswers[qNo].toUpperCase() : "";
+  sectionEl.querySelectorAll(".question").forEach(qDiv => {
+    total++;
+    const qNo = qDiv.dataset.qno;
+    const correctAns = (correctAnswers[qNo] || "").toUpperCase();
 
-      // 获取用户选项（字母数组，排序后拼字符串）
-      const checkedOptions = [];
-      qDiv.querySelectorAll("input:checked").forEach(input => {
-        checkedOptions.push(input.value.toUpperCase());
-      });
-      checkedOptions.sort();
-      const userAns = checkedOptions.join("");
+    // 获取用户选项（字母数组，排序后拼字符串）
+    const checkedOptions = [];
+    qDiv.querySelectorAll("input:checked").forEach(input => {
+      checkedOptions.push(input.value.toUpperCase());
+    });
+    checkedOptions.sort();
+    const userAns = checkedOptions.join("");
 
-      // 判断是否正确
-      const isCorrect = userAns === correctAns;
+    // 判断是否完全正确（顺序和内容都一样）
+    const isCorrect = userAns === correctAns;
+    if (isCorrect) correctCount++;
 
-      if (isCorrect) correctCount++;
+    // 清除之前标记
+    qDiv.querySelectorAll("label.option").forEach(label => {
+      label.classList.remove("correct", "incorrect");
+      const oldMark = label.querySelector(".correct-answer-mark, .incorrect-answer-mark");
+      if (oldMark) oldMark.remove();
+    });
 
-      // 标记选项颜色
-      qDiv.querySelectorAll("label.option").forEach(label => {
-        const input = label.querySelector("input");
-        const val = input.value.toUpperCase();
-        label.classList.remove("correct", "incorrect");
-        const oldMark = label.querySelector(".correct-answer-mark, .incorrect-answer-mark");
-        if (oldMark) oldMark.remove();
+    // 标记所有选项
+    qDiv.querySelectorAll("label.option").forEach(label => {
+      const input = label.querySelector("input");
+      const val = input.value.toUpperCase();
 
-        if (correctAns.includes(val) && userAns.includes(val)) {
-          // 选对的选项
+      if (correctAns.includes(val)) {
+        if (userAns.includes(val)) {
+          // 选对了，绿色+打勾
           label.classList.add("correct");
           const mark = document.createElement("span");
           mark.className = "correct-answer-mark";
           mark.textContent = "✓";
           label.appendChild(mark);
-        } else if (userAns.includes(val) && !correctAns.includes(val)) {
-          // 选错的选项
+        } else {
+          // 正确答案但未选中，淡绿色背景（提示正确答案）
+          label.classList.add("correct");
+          // 不加勾，但也不标红
+        }
+      } else {
+        if (userAns.includes(val)) {
+          // 用户选错的，红色+叉号
           label.classList.add("incorrect");
           const mark = document.createElement("span");
           mark.className = "incorrect-answer-mark";
           mark.textContent = "✗";
           label.appendChild(mark);
-        } else if (correctAns.includes(val) && !userAns.includes(val)) {
-          // 正确但未选的（多选题时）
-          // 也可以提示，但这里不特别标记
         }
-      });
+      }
     });
+  });
 
-    alert(`本章共${total}题，您答对了${correctCount}题，正确率${((correctCount / total) * 100).toFixed(2)}%`);
-  };
+  alert(`本章共${total}题，您答对了${correctCount}题，正确率${((correctCount / total) * 100).toFixed(2)}%`);
+};
 
   // 监听窗口宽度变化，动态调整section宽度和位置
   window.addEventListener("resize", () => {
@@ -447,6 +457,10 @@
   }
 
   init();
+
+  document.getElementById('goToIndex2Btn').addEventListener('click', () => {
+  window.location.href = 'index2.html';
+});
 
 </script>
 </body>
