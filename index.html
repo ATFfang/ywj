@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>iOS风格做题页</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    margin: 0; padding: 0;
+    background: #f9f9f9;
+    color: #1c1c1e;
+    line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+  }
+  header {
+    background: #f8f8f8;
+    padding: 15px 20px;
+    font-size: 20px;
+    font-weight: 600;
+    border-bottom: 1px solid #ccc;
+    text-align: center;
+  }
+  main {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 15px 15px 80px;
+  }
+  section {
+    margin-bottom: 30px;
+  }
+  section h2 {
+    font-weight: 600;
+    font-size: 18px;
+    margin-bottom: 12px;
+    border-left: 4px solid #007aff;
+    padding-left: 8px;
+  }
+  .question {
+    background: #fff;
+    border-radius: 12px;
+    padding: 15px 18px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
+  }
+  .q-title {
+    font-weight: 500;
+    margin-bottom: 10px;
+    font-size: 16px;
+  }
+  .options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  label.option {
+    flex: 1 1 calc(50% - 10px);
+    user-select: none;
+    position: relative;
+    padding: 10px 14px 10px 42px;
+    border: 1.5px solid #ccc;
+    border-radius: 22px;
+    font-size: 14px;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: border-color 0.3s, background-color 0.3s;
+    background: #fafafa;
+  }
+  input[type="radio"],
+  input[type="checkbox"] {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    appearance: none;
+    border: 1.5px solid #ccc;
+    border-radius: 50%;
+    background: #fff;
+    outline: none;
+  }
+  input[type="checkbox"] {
+    border-radius: 4px;
+  }
+  input[type="radio"]:checked {
+    border-color: #007aff;
+    background: #007aff;
+  }
+  input[type="checkbox"]:checked {
+    border-color: #007aff;
+    background: #007aff url('data:image/svg+xml;utf8,<svg fill="white" height="14" viewBox="0 0 24 24" width="14" xmlns="http://www.w3.org/2000/svg"><path d="M20.285 6.709l-11.4 11.4-5.7-5.7 1.414-1.414 4.286 4.286 9.986-9.986z"/></svg>') no-repeat center center;
+    background-size: 14px 14px;
+  }
+  label.option:hover {
+    border-color: #007aff;
+    background: #e5f0ff;
+  }
+  .correct {
+    border-color: #34c759 !important;
+    background: #d4f8d4 !important;
+  }
+  .incorrect {
+    border-color: #ff3b30 !important;
+    background: #fddede !important;
+  }
+  .correct-answer-mark {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #34c759;
+    font-weight: 700;
+    font-size: 18px;
+  }
+  .incorrect-answer-mark {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #ff3b30;
+    font-weight: 700;
+    font-size: 18px;
+  }
+  #submit-btn {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #007aff;
+    color: #fff;
+    border: none;
+    padding: 15px 45px;
+    border-radius: 28px;
+    font-size: 18px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgb(0 122 255 / 0.5);
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.3s;
+    z-index: 100;
+  }
+  #submit-btn:active {
+    background-color: #005bb5;
+  }
+  #submit-btn:disabled {
+    background-color: #a0a0a0;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  @media (max-width: 400px) {
+    label.option {
+      flex: 1 1 100%;
+    }
+  }
+</style>
+</head>
+<body>
+<header>试题练习</header>
+<main id="content">加载中...</main>
+<button id="submit-btn" disabled>提交答案</button>
+
+<script>
+  // 从字符串里提取选项：A. XXX B. XXX
+  function parseOptions(text) {
+    // 选项格式一般是“A. xx B. xx C. xx D. xx E. xx”
+    // 用正则匹配大写英文字母加点
+    const regex = /([A-Z])\. ([^A-Z]+)/g;
+    let options = [];
+    let match;
+    while ((match = regex.exec(text + " ")) !== null) {
+      options.push({ key: match[1], text: match[2].trim() });
+    }
+    return options;
+  }
+
+  // 判断题型（单选 or 多选）
+  // 多选题标题里通常含“多选”
+  function isMultiChoice(sectionTitle) {
+    return sectionTitle.includes("多选");
+  }
+
+  // 渲染题目
+  function renderQuestions(questions, answers) {
+    const container = document.getElementById("content");
+    container.innerHTML = "";
+
+    for (const sectionTitle in questions) {
+      const sectionEl = document.createElement("section");
+      const h2 = document.createElement("h2");
+      h2.textContent = sectionTitle;
+      sectionEl.appendChild(h2);
+
+      const isMulti = isMultiChoice(sectionTitle);
+      const questionList = questions[sectionTitle];
+      const answerMap = answers[sectionTitle] || {};
+
+      questionList.forEach((qStr, idx) => {
+        // 题号 - 正文拆分
+        // 例如 "1. 杜威所主张... ( )。A. 存在主义教育思想 B. ..."
+        // 找第一个句号后空格切分
+        let splitIndex = qStr.indexOf(".");
+        if (splitIndex < 0) splitIndex = 1;
+        const qNo = qStr.substring(0, splitIndex).trim();
+        const qText = qStr.substring(splitIndex + 1).trim();
+
+        // 选项提取
+        const options = parseOptions(qText);
+
+        // 题干不含选项部分（题干 + "( )。"）
+        // 找第一个"A."出现位置
+        let optionStartIndex = qText.indexOf("A.");
+        let qTitleText = optionStartIndex >= 0 ? qText.substring(0, optionStartIndex).trim() : qText;
+
+        // 题目容器
+        const qDiv = document.createElement("div");
+        qDiv.className = "question";
+        qDiv.dataset.section = sectionTitle;
+        qDiv.dataset.qno = qNo;
+        qDiv.dataset.isMulti = isMulti ? "true" : "false";
+
+        // 题干
+        const titleEl = document.createElement("div");
+        titleEl.className = "q-title";
+        titleEl.textContent = `${qNo}. ${qTitleText}`;
+        qDiv.appendChild(titleEl);
+
+        // 选项容器
+        const optionsDiv = document.createElement("div");
+        optionsDiv.className = "options";
+
+        options.forEach(opt => {
+          const label = document.createElement("label");
+          label.className = "option";
+          label.htmlFor = `${sectionTitle}-${qNo}-${opt.key}`;
+
+          const input = document.createElement("input");
+          input.type = isMulti ? "checkbox" : "radio";
+          input.name = `${sectionTitle}-${qNo}`;
+          input.id = `${sectionTitle}-${qNo}-${opt.key}`;
+          input.value = opt.key;
+
+          label.appendChild(input);
+          label.appendChild(document.createTextNode(` ${opt.key}. ${opt.text}`));
+          optionsDiv.appendChild(label);
+        });
+
+        qDiv.appendChild(optionsDiv);
+        sectionEl.appendChild(qDiv);
+      });
+
+      container.appendChild(sectionEl);
+    }
+    // 提交按钮可用
+    document.getElementById("submit-btn").disabled = false;
+  }
+
+  // 比对答案，提交时调用
+  function checkAnswers() {
+    const container = document.getElementById("content");
+    const questionDivs = container.querySelectorAll(".question");
+
+    let total = 0;
+    let correctCount = 0;
+
+    questionDivs.forEach(qDiv => {
+      const section = qDiv.dataset.section;
+      const qNo = qDiv.dataset.qno;
+      const isMulti = qDiv.dataset.isMulti === "true";
+            const correctAnswer = answerData[section]?.[qNo] || "";
+      total++;
+
+      // 获取用户选中答案（字符串形式，按字母升序拼接）
+      const checkedInputs = qDiv.querySelectorAll("input:checked");
+      let userAnswerArr = Array.from(checkedInputs).map(i => i.value.toUpperCase());
+      userAnswerArr.sort();
+      const userAnswer = userAnswerArr.join("");
+
+      // 清除之前标记
+      qDiv.querySelectorAll("label.option").forEach(label => {
+        label.classList.remove("correct", "incorrect");
+        const mark = label.querySelector(".correct-answer-mark") || label.querySelector(".incorrect-answer-mark");
+        if (mark) mark.remove();
+      });
+
+      // 判断对错
+      if (userAnswer === correctAnswer) {
+        correctCount++;
+      }
+
+      // 标记每个选项对错
+      qDiv.querySelectorAll("input").forEach(input => {
+        const label = qDiv.querySelector(`label[for="${input.id}"]`);
+        const val = input.value.toUpperCase();
+
+        const isCorrect = correctAnswer.includes(val);
+        const isSelected = input.checked;
+
+        if (isCorrect && isSelected) {
+          // 选对了
+          label.classList.add("correct");
+          // 添加正确标记 ✓
+          const mark = document.createElement("span");
+          mark.className = "correct-answer-mark";
+          mark.textContent = "✓";
+          label.appendChild(mark);
+        } else if (isSelected && !isCorrect) {
+          // 选错了
+          label.classList.add("incorrect");
+          // 添加错误标记 ✗
+          const mark = document.createElement("span");
+          mark.className = "incorrect-answer-mark";
+          mark.textContent = "✗";
+          label.appendChild(mark);
+        } else if (!isSelected && isCorrect) {
+          // 正确答案但没选中，标绿边（不加 ✓）
+          label.classList.add("correct");
+        }
+      });
+    });
+
+    alert(`您答对了 ${correctCount} / ${total} 题`);
+  }
+
+  // 加载本地 JSON
+  let questionData = null;
+  let answerData = null;
+
+  async function loadData() {
+    try {
+      const qResp = await fetch('question.json');
+      questionData = await qResp.json();
+
+      const aResp = await fetch('answer.json');
+      answerData = await aResp.json();
+
+      renderQuestions(questionData, answerData);
+    } catch (e) {
+      document.getElementById("content").textContent = "加载数据失败，请确保在服务器环境下运行。";
+      console.error(e);
+    }
+  }
+
+  document.getElementById("submit-btn").addEventListener("click", () => {
+    checkAnswers();
+  });
+
+  loadData();
+</script>
+</body>
+</html>
